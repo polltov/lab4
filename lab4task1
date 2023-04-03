@@ -1,0 +1,63 @@
+import yfinance as yf
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+
+plt.style.use('fivethirtyeight') #Для стилизации граф
+
+# загрузка данных
+df_visa = yf.download('V', start='2020-01-01', end='2020-12-31')['Close']
+df_mastercard = yf.download('MA', start='2020-01-01', end='2020-12-31')['Close']
+
+# вычисление математического ожидания
+df_visa_mean = df_visa.mean()
+df_mastercard_mean = df_mastercard.mean()
+print(f"df_visa mean: {df_visa_mean:.2f}")
+print(f"df_mastercard mean: {df_mastercard_mean:.2f}")
+
+# сглаживание данных экспоненциальным фильтром
+df_visa_ewma = df_visa.ewm(span=20).mean()
+df_mastercard_ewma = df_mastercard.ewm(span=20).mean()
+
+# сглаживание данных с помощью скользящего среднего
+df_visa_ma = df_visa.rolling(window=20, min_periods=1).mean()
+df_mastercard_ma = df_mastercard.rolling(window=20, min_periods=1).mean()
+
+
+# вычисление коэффициента корреляции между сглаженными данными
+corr_ewma = np.corrcoef(df_visa_ewma, df_mastercard_ewma)[0, 1]
+corr_ma = np.corrcoef(df_visa_ma, df_mastercard_ma)[0, 1]
+
+# вывод коэффициента корреляции
+print(f"Коэффициент корреляции без сглаживания: {np.corrcoef(df_visa, df_mastercard)[0, 1]:.2f}")
+print(f"Коэффициент корреляции со скользящим средним: {corr_ma:.2f}")
+print(f"Коэффициент корреляции с экспоненциальным сглаживанием: {corr_ewma:.2f}")
+
+# создание графиков
+fig, axs = plt.subplots(2, figsize=(10, 8))
+canvas = FigureCanvas(fig) # добавляем FigureCanvas
+
+axs[0].plot(df_visa.index, df_visa, label='Raw data')
+axs[0].plot(df_visa_ma.index, df_visa_ma, label='MA')
+axs[0].plot(df_visa_ewma.index, df_visa_ewma, label='EWMA')
+axs[0].set_title('Visa stock prices')
+axs[0].grid(True)
+axs[0].legend()
+
+axs[1].plot(df_mastercard.index, df_mastercard, label='Raw data')
+axs[1].plot(df_mastercard_ma.index, df_mastercard_ma, label='MA')
+axs[1].plot(df_mastercard_ewma.index, df_mastercard_ewma, label='EWMA')
+axs[1].set_title('Mastercard stock prices')
+axs[1].legend()
+axs[1].grid(True)
+
+
+corr_ma = np.corrcoef(df_visa_ma, df_mastercard_ma)[0, 1]
+corr_ewma = np.corrcoef(df_visa_ewma, df_mastercard_ewma)[0, 1]
+
+plt.text(df_visa.index[5], max(df_visa)*0.95, f'MA corr: {corr_ma:.2f}')
+plt.text(df_visa.index[5], max(df_visa)*0.9, f'EWMA corr: {corr_ewma:.2f}')
+
+plt.tight_layout()
+plt.show()
